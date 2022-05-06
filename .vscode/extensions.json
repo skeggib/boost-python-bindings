@@ -1,14 +1,18 @@
 {
     "recommendations": [
-        "ms-vscode.cpptools",
-        "matepek.vscode-catch2-test-adapter",
-        "twxs.cmake",
-        "ms-vscode.cmake-tools",
-        "guyutongxue.cpp-reference",
         "cschlosser.doxdocgen",
-        "mhutchie.git-graph",
+        "derivitec-ltd.cmake-test-adapter",
         "eamodio.gitlens",
+        "guyutongxue.cpp-reference",
+        "hbenl.vscode-test-explorer",
+        "matepek.vscode-catch2-test-adapter",
+        "mhutchie.git-graph",
+        "ms-python.vscode-pylance",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools",
         "ms-vscode.test-adapter-converter",
-        "hbenl.vscode-test-explorer"
+        "ms-vscode.test-adapter-converter",
+        "streetsidesoftware.code-spell-checker",
+        "twxs.cmake",
     ]
 }
