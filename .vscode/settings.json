@@ -1,4 +1,21 @@
 {
+    "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST,spec,Spec,SPEC}*",
+    "C_Cpp.errorSquiggles": "Disabled",
+    "python.testing.pytestArgs": [
+        "test"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/build/test/e2e",
+    ],
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/build/test/e2e",
+    ],
+    "cmake.configureArgs": [
+        "-DLIBCLANG_ROOT_DIR=/usr/lib/llvm-14"
+    ],
+
     "files.associations": {
         "iostream": "cpp",
         "*.tcc": "cpp",
@@ -86,9 +103,7 @@
         "queue": "cpp",
         "stack": "cpp",
         "cstdbool": "cpp",
-        "version": "cpp"
+        "version": "cpp",
+        "strstream": "cpp"
     },
-    "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST,spec,Spec,SPEC}*",
-    "C_Cpp.errorSquiggles": "Disabled",
-    "editor.formatOnSave": true
 }
