@@ -1,0 +1,16 @@
+name: build-and-test
+on: [push]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container: skeggib/boost-python-bindings:dev
+    steps:
+      - uses: actions/checkout@v3
+      - name: build-and-test
+        run: |
+          mkdir build
+          cd build
+          cmake -GNinja .. -DLIBCLANG_ROOT_DIR=/usr/lib/llvm-14
+          ninja generator
+          ninja E2EBindings
+          ctest
