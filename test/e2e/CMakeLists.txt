@@ -26,9 +26,17 @@ target_link_libraries(
 )
 
 # run tests
+
 add_test(
-    NAME e2e
-    COMMAND pytest
+    NAME e2e/classes
+    COMMAND pytest test_classes.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python_unit_tests
 )
-set_tests_properties(e2e PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}")
+set_tests_properties(e2e/classes PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}")
+
+add_test(
+    NAME e2e/functions
+    COMMAND pytest test_functions.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python_unit_tests
+)
+set_tests_properties(e2e/functions PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}")
