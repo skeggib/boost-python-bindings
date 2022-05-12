@@ -10,4 +10,13 @@ def test_methods_are_bound():
     world.set('Hello world!')
     assert world.greet() == 'Hello world!'
 
-# TODO: struct
+# TODO: public attributes
+# TODO: protected attributes
+# TODO: private attributes
+
+# TODO: existing default constructor
+# TODO: non-existing default constructor
+# TODO: existing copy constructor
+# TODO: non-existing copy constructor
+# TODO: existing value constructor
+# TODO: non-existing value constructor

@@ -28,3 +28,18 @@ public:
 private:
     std::string msg_;
 };
+
+struct Date
+{
+    int day;
+    int month;
+    int year;
+
+    Date();
+    Date(int day, int month, int year);
+
+    /**
+     * @brief Get the date in the dd/mm/yyyy format;
+     */
+    std::string toString() const;
+};
