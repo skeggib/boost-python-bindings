@@ -27,10 +27,22 @@ MethodDecl parse_method_decl(CXCursor cursor)
     return MethodDecl{name};
 }
 
+struct FieldDecl
+{
+    std::string name;
+};
+FieldDecl parse_field_decl(CXCursor cursor)
+{
+    auto name = clang_getCString(clang_getCursorSpelling(cursor));
+    std::cout << "[debug] parsing field: " << name << std::endl;
+    return FieldDecl{name};
+}
+
 struct ClassDecl
 {
     std::string name;
     std::vector<MethodDecl> methods;
+    std::vector<FieldDecl> fields;
 };
 CXChildVisitResult class_visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
@@ -40,6 +52,12 @@ CXChildVisitResult class_visitor(CXCursor cursor, CXCursor parent, CXClientData 
     {
     case CXCursor_CXXMethod:
         class_->methods.push_back(parse_method_decl(cursor));
+        break;
+    case CXCursor_FieldDecl:
+        if (clang_getCXXAccessSpecifier(cursor) == CX_CXXPublic)
+        {
+            class_->fields.push_back(parse_field_decl(cursor));
+        }
         break;
     default:
         // do nothing
@@ -85,6 +103,7 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData client
             data->functions.push_back(parse_function_decl(cursor));
             break;
         case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
             data->classes.push_back(parse_class_decl(cursor));
             break;
         default:
@@ -149,6 +168,10 @@ int main(int argc, char **argv)
         for (auto &method : class_.methods)
         {
             output_file_stream << "        .def(\"" << method.name << "\", &" << class_.name << "::" << method.name << ")\n";
+        }
+        for (auto &field : class_.fields)
+        {
+            output_file_stream << "        .def_readwrite(\"" << field.name << "\", &" << class_.name << "::" << field.name << ")\n";
         }
         output_file_stream << "    ;\n";
     }

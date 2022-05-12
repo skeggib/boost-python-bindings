@@ -40,3 +40,10 @@ add_test(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python_unit_tests
 )
 set_tests_properties(e2e/functions PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}")
+
+add_test(
+    NAME e2e/structs
+    COMMAND pytest test_structs.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python_unit_tests
+)
+set_tests_properties(e2e/structs PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}")
