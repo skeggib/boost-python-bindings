@@ -10,7 +10,16 @@ def test_methods_are_bound():
     world.set('Hello world!')
     assert world.greet() == 'Hello world!'
 
-# TODO: public attributes
+def test_public_attributes_are_bound():
+    person = bindings.Person()
+    # assign a value to a public attribute
+    person.firstName = 'John'
+    person.lastName = 'Smith'
+    # check that the value was taken into account in Python
+    assert person.firstName == 'John'
+    # check that the value was taken into account in C++
+    assert person.toString() == 'John Smith'
+
 # TODO: protected attributes
 # TODO: private attributes
 

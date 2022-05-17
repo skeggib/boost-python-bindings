@@ -43,3 +43,11 @@ struct Date
      */
     std::string toString() const;
 };
+
+class Person
+{
+public:
+    std::string firstName;
+    std::string lastName;
+    std::string toString() const;
+};
