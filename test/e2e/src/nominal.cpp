@@ -39,3 +39,8 @@ std::string Date::toString() const
        << std::setw(4) << year;
     return ss.str();
 }
+
+std::string Person::toString() const
+{
+    return firstName + " " + lastName;
+}
