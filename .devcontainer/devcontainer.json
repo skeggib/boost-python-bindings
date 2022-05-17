@@ -24,6 +24,7 @@
         "ms-vscode.test-adapter-converter",
         "streetsidesoftware.code-spell-checker",
         "twxs.cmake",
+        "Gruntfuggly.todo-tree",
     ]
     // Use 'forwardPorts' to make a list of ports inside the container available locally.
     // "forwardPorts": [],
