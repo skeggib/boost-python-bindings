@@ -1,5 +1,6 @@
 #include <clang-c/Index.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -150,12 +151,14 @@ int main(int argc, char **argv)
     clang_disposeIndex(index);
 
     std::ofstream output_file_stream;
-    std::cout << "[debug] writting output file" << std::endl;
+    std::cout << "[debug] writing output file" << std::endl;
     output_file_stream.open(output_file_path);
 
+    output_file_stream << "#include \"" << std::filesystem::path(input_file_path).filename().c_str() << "\"\n";
+    output_file_stream << "#include \"bindings_discovery.hpp\"\n";
     output_file_stream << "#include <boost/python.hpp>\n";
-    output_file_stream << "#include \"nominal.hpp\"\n";
-    output_file_stream << "BOOST_PYTHON_MODULE(libE2EBindings)\n";
+    output_file_stream << "namespace {\n";
+    output_file_stream << "void bind()\n";
     output_file_stream << "{\n";
     output_file_stream << "    using namespace boost::python;\n";
     for (auto &function : data.functions)
@@ -175,7 +178,9 @@ int main(int argc, char **argv)
         }
         output_file_stream << "    ;\n";
     }
-    output_file_stream << "}\n";
+    output_file_stream << "} // bind\n";
+    output_file_stream << "} // namespace\n";
+    output_file_stream << "REGISTER_BINDER(bind)\n";
 
     output_file_stream.close();
 
