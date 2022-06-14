@@ -5,13 +5,40 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch",
+            "name": "(gdb) Generate bindings for nominal.hpp",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/generator/generator",
             "args": [
                 "${workspaceFolder}/test/e2e/include/nominal.hpp",
                 "${workspaceFolder}/build/test/e2e/bindings/nominal.cpp"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/test/e2e",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description":  "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) Generate bindings for constructors.hpp",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/generator/generator",
+            "args": [
+                "${workspaceFolder}/test/e2e/include/constructors.hpp",
+                "${workspaceFolder}/build/test/e2e/bindings/constructors.cpp"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/test/e2e",
