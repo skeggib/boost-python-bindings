@@ -1,0 +1,7 @@
+#include "bindings_discovery.hpp"
+#include <boost/python.hpp>
+
+BOOST_PYTHON_MODULE(lib${BINDINGS_LIB_NAME})
+{
+    bind_all();
+}
