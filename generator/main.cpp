@@ -17,6 +17,42 @@ FunctionDecl parse_function_decl(CXCursor cursor)
     return FunctionDecl{name};
 }
 
+struct ConstructorDecl
+{
+    CXCursor cursor;
+    std::vector<std::string> parameter_types; // TODO: parse types
+
+    bool is_copy() const
+    {
+        return clang_CXXConstructor_isCopyConstructor(cursor);
+    }
+};
+CXChildVisitResult constructor_visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
+{
+    ConstructorDecl *constructor = static_cast<ConstructorDecl *>(client_data);
+    auto cursorKind = clang_getCursorKind(cursor);
+    switch (cursorKind)
+    {
+    case CXCursor_ParmDecl:
+        constructor->parameter_types.push_back(clang_getCString(clang_getTypeSpelling(clang_getCursorType(cursor))));
+        break;
+    default:
+        // do nothing
+        break;
+    }
+    return CXChildVisit_Continue;
+}
+ConstructorDecl parse_constructor_decl(CXCursor cursor)
+{
+    ConstructorDecl constructor;
+    constructor.cursor = cursor;
+    clang_visitChildren(
+        cursor,
+        constructor_visitor,
+        &constructor);
+    return constructor;
+}
+
 struct MethodDecl
 {
     std::string name;
@@ -44,6 +80,25 @@ struct ClassDecl
     std::string name;
     std::vector<MethodDecl> methods;
     std::vector<FieldDecl> fields;
+    std::vector<ConstructorDecl> explicit_constructors;
+
+    std::vector<std::reference_wrapper<const ConstructorDecl>> all_constructors() const
+    {
+        std::vector<std::reference_wrapper<const ConstructorDecl>> result(explicit_constructors.begin(), explicit_constructors.end());
+        // if (std::find_if(explicit_constructors.begin(), explicit_constructors.end(), [](const ConstructorDecl &constructor){ constructor.is_default(); }))
+        // if (explicit_constructors.size() == 0)
+        // {
+        //     result.push_back(ConstructorDecl::Default);
+        //     result.push_back(ConstructorDecl::Copy);
+        // }
+        return result;
+    }
+
+    bool has_copy_constructor() const
+    {
+        const auto &constructors = all_constructors();
+        return std::find_if(constructors.begin(), constructors.end(), [](const ConstructorDecl &constructor){ return constructor.is_copy(); }) != constructors.end();
+    }
 };
 CXChildVisitResult class_visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
@@ -51,6 +106,9 @@ CXChildVisitResult class_visitor(CXCursor cursor, CXCursor parent, CXClientData 
     auto cursorKind = clang_getCursorKind(cursor);
     switch (cursorKind)
     {
+    case CXCursor_Constructor:
+        class_->explicit_constructors.push_back(parse_constructor_decl(cursor));
+        break;
     case CXCursor_CXXMethod:
         class_->methods.push_back(parse_method_decl(cursor));
         break;
@@ -168,6 +226,10 @@ int main(int argc, char **argv)
     for (auto &class_ : data.classes)
     {
         output_file_stream << "    class_<" << class_.name << ">(\"" << class_.name << "\")\n";
+        if (class_.has_copy_constructor())
+        {
+            output_file_stream << "        .def(init<" << class_.name << " const &>())\n";
+        }
         for (auto &method : class_.methods)
         {
             output_file_stream << "        .def(\"" << method.name << "\", &" << class_.name << "::" << method.name << ")\n";

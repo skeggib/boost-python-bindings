@@ -22,10 +22,3 @@ def test_public_attributes_are_bound():
 
 # TODO: protected attributes
 # TODO: private attributes
-
-# TODO: existing default constructor
-# TODO: non-existing default constructor
-# TODO: existing copy constructor
-# TODO: non-existing copy constructor
-# TODO: existing value constructor
-# TODO: non-existing value constructor
