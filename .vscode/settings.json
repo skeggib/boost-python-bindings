@@ -104,6 +104,7 @@
         "stack": "cpp",
         "cstdbool": "cpp",
         "version": "cpp",
-        "strstream": "cpp"
+        "strstream": "cpp",
+        "cfenv": "cpp"
     },
 }
