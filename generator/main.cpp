@@ -1,3 +1,5 @@
+#include "lazy.hpp"
+
 #include <clang-c/Index.h>
 
 #include <filesystem>
@@ -6,135 +8,176 @@
 #include <string>
 #include <vector>
 
-struct FunctionDecl
+class FunctionDecl
 {
-    std::string name;
-};
-FunctionDecl parse_function_decl(CXCursor cursor)
-{
-    auto name = clang_getCString(clang_getCursorSpelling(cursor));
-    std::cout << "[debug] parsing function: " << name << std::endl;
-    return FunctionDecl{name};
-}
+private:
+    lazy<std::string> name_;
 
-struct ConstructorDecl
-{
-    CXCursor cursor;
-    std::vector<std::string> parameter_types; // TODO: parse types
-
-    bool is_copy() const
+public:
+    FunctionDecl(CXCursor cursor)
+        : name_([cursor]()
+                { return clang_getCString(clang_getCursorSpelling(cursor)); })
     {
-        return clang_CXXConstructor_isCopyConstructor(cursor);
     }
+    const std::string &name() const { return name_; }
 };
-CXChildVisitResult constructor_visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
+
+class ConstructorDecl
 {
-    ConstructorDecl *constructor = static_cast<ConstructorDecl *>(client_data);
-    auto cursorKind = clang_getCursorKind(cursor);
-    switch (cursorKind)
+private:
+    lazy<bool> is_copy_;
+
+public:
+    ConstructorDecl(CXCursor cursor)
+        : is_copy_([cursor]()
+                   { return clang_CXXConstructor_isCopyConstructor(cursor); })
     {
-    case CXCursor_ParmDecl:
-        constructor->parameter_types.push_back(clang_getCString(clang_getTypeSpelling(clang_getCursorType(cursor))));
-        break;
+    }
+
+    bool is_copy() const { return is_copy_; }
+};
+
+class MethodDecl
+{
+private:
+    lazy<std::string> name_;
+
+public:
+    MethodDecl(CXCursor cursor)
+        : name_([cursor]()
+                { return clang_getCString(clang_getCursorSpelling(cursor)); })
+    {
+    }
+    const std::string &name() const { return name_; }
+};
+
+enum AccessSpecifier
+{
+    Public,
+    Protected,
+    Private,
+    Invalid
+};
+AccessSpecifier convert_clang_access_specifier(CX_CXXAccessSpecifier access_specifier)
+{
+    switch (access_specifier)
+    {
+    case CX_CXXInvalidAccessSpecifier:
+        return AccessSpecifier::Invalid;
+    case CX_CXXPublic:
+        return AccessSpecifier::Public;
+    case CX_CXXProtected:
+        return AccessSpecifier::Protected;
+    case CX_CXXPrivate:
+        return AccessSpecifier::Private;
     default:
-        // do nothing
-        break;
+        return AccessSpecifier::Invalid;
     }
-    return CXChildVisit_Continue;
-}
-ConstructorDecl parse_constructor_decl(CXCursor cursor)
-{
-    ConstructorDecl constructor;
-    constructor.cursor = cursor;
-    clang_visitChildren(
-        cursor,
-        constructor_visitor,
-        &constructor);
-    return constructor;
 }
 
-struct MethodDecl
+class FieldDecl
 {
-    std::string name;
-};
-MethodDecl parse_method_decl(CXCursor cursor)
-{
-    auto name = clang_getCString(clang_getCursorSpelling(cursor));
-    std::cout << "[debug] parsing method: " << name << std::endl;
-    return MethodDecl{name};
-}
+private:
+    lazy<std::string> name_;
+    lazy<AccessSpecifier> access_specifier_;
 
-struct FieldDecl
-{
-    std::string name;
-};
-FieldDecl parse_field_decl(CXCursor cursor)
-{
-    auto name = clang_getCString(clang_getCursorSpelling(cursor));
-    std::cout << "[debug] parsing field: " << name << std::endl;
-    return FieldDecl{name};
-}
-
-struct ClassDecl
-{
-    std::string name;
-    std::vector<MethodDecl> methods;
-    std::vector<FieldDecl> fields;
-    std::vector<ConstructorDecl> explicit_constructors;
-
-    std::vector<std::reference_wrapper<const ConstructorDecl>> all_constructors() const
+public:
+    FieldDecl(CXCursor cursor)
+        : name_([cursor]()
+                { return clang_getCString(clang_getCursorSpelling(cursor)); }),
+          access_specifier_([cursor]()
+                            { return convert_clang_access_specifier(clang_getCXXAccessSpecifier(cursor)); })
     {
-        std::vector<std::reference_wrapper<const ConstructorDecl>> result(explicit_constructors.begin(), explicit_constructors.end());
+    }
+    const std::string &name() const { return name_; }
+    AccessSpecifier access_specifier() const { return access_specifier_; }
+};
+
+class ClassDecl
+{
+private:
+    lazy<std::string> name_;
+    lazy<std::vector<MethodDecl>> methods_;
+    lazy<std::vector<FieldDecl>> fields_;
+    lazy<std::vector<ConstructorDecl>> explicit_constructors_;
+    lazy<std::vector<std::reference_wrapper<const ConstructorDecl>>> all_constructors_;
+
+public:
+    ClassDecl(CXCursor cursor)
+        : name_([cursor]()
+                { return clang_getCString(clang_getCursorSpelling(cursor)); }),
+          methods_([cursor]()
+                   {
+                    std::vector<MethodDecl> methods;
+                    clang_visitChildren(
+                        cursor,
+                        [](CXCursor cursor, CXCursor parent, CXClientData client_data){
+                            std::vector<MethodDecl> *methods = static_cast<std::vector<MethodDecl> *>(client_data);
+                            if (clang_getCursorKind(cursor) == CXCursor_CXXMethod)
+                            {
+                                methods->push_back(MethodDecl(cursor));
+                            }
+                            return CXChildVisit_Continue;
+                        },
+                        &methods);
+                    return methods; }),
+          fields_([cursor]()
+                  {
+                    std::vector<FieldDecl> fields;
+                    clang_visitChildren(
+                        cursor,
+                        [](CXCursor cursor, CXCursor parent, CXClientData client_data){
+                            std::vector<FieldDecl> *fields = static_cast<std::vector<FieldDecl> *>(client_data);
+                            if (clang_getCursorKind(cursor) == CXCursor_FieldDecl)
+                            {
+                                fields->push_back(FieldDecl(cursor));
+                            }
+                            return CXChildVisit_Continue;
+                        },
+                        &fields);
+                    return fields; }),
+          explicit_constructors_([cursor]()
+                                 {
+                    std::vector<ConstructorDecl> constructors;
+                    clang_visitChildren(
+                        cursor,
+                        [](CXCursor cursor, CXCursor parent, CXClientData client_data){
+                            std::vector<ConstructorDecl> *constructors = static_cast<std::vector<ConstructorDecl> *>(client_data);
+                            if (clang_getCursorKind(cursor) == CXCursor_Constructor)
+                            {
+                                constructors->push_back(ConstructorDecl(cursor));
+                            }
+                            return CXChildVisit_Continue;
+                        },
+                        &constructors);
+                    return constructors; })
+    {
+    }
+    const std::string &name() const { return name_; }
+    const std::vector<MethodDecl> &methods() const { return methods_; }
+    const std::vector<FieldDecl> &fields() const { return fields_; }
+    const std::vector<ConstructorDecl> &explicit_constructors() const { return explicit_constructors_; }
+    const std::vector<std::reference_wrapper<const ConstructorDecl>> &all_constructors() const
+    {
+        return all_constructors_.value_or([this]()
+                                          {
+        std::vector<std::reference_wrapper<const ConstructorDecl>> result(explicit_constructors().begin(), explicit_constructors().end());
         // if (std::find_if(explicit_constructors.begin(), explicit_constructors.end(), [](const ConstructorDecl &constructor){ constructor.is_default(); }))
         // if (explicit_constructors.size() == 0)
         // {
         //     result.push_back(ConstructorDecl::Default);
         //     result.push_back(ConstructorDecl::Copy);
         // }
-        return result;
+        return result; });
     }
 
     bool has_copy_constructor() const
     {
         const auto &constructors = all_constructors();
-        return std::find_if(constructors.begin(), constructors.end(), [](const ConstructorDecl &constructor){ return constructor.is_copy(); }) != constructors.end();
+        return std::find_if(constructors.begin(), constructors.end(), [](const ConstructorDecl &constructor)
+                            { return constructor.is_copy(); }) != constructors.end();
     }
 };
-CXChildVisitResult class_visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
-{
-    ClassDecl *class_ = static_cast<ClassDecl *>(client_data);
-    auto cursorKind = clang_getCursorKind(cursor);
-    switch (cursorKind)
-    {
-    case CXCursor_Constructor:
-        class_->explicit_constructors.push_back(parse_constructor_decl(cursor));
-        break;
-    case CXCursor_CXXMethod:
-        class_->methods.push_back(parse_method_decl(cursor));
-        break;
-    case CXCursor_FieldDecl:
-        if (clang_getCXXAccessSpecifier(cursor) == CX_CXXPublic)
-        {
-            class_->fields.push_back(parse_field_decl(cursor));
-        }
-        break;
-    default:
-        // do nothing
-        break;
-    }
-    return CXChildVisit_Continue;
-}
-ClassDecl parse_class_decl(CXCursor cursor)
-{
-    auto name = clang_getCString(clang_getCursorSpelling(cursor));
-    std::cout << "[debug] parsing class: " << name << std::endl;
-    ClassDecl class_{name};
-    clang_visitChildren(
-        cursor,
-        class_visitor,
-        &class_);
-    return class_;
-}
 
 struct VisitorData
 {
@@ -159,11 +202,11 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData client
         switch (cursorKind)
         {
         case CXCursor_FunctionDecl:
-            data->functions.push_back(parse_function_decl(cursor));
+            data->functions.push_back(FunctionDecl(cursor));
             break;
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
-            data->classes.push_back(parse_class_decl(cursor));
+            data->classes.push_back(ClassDecl(cursor));
             break;
         default:
             // do nothing
@@ -221,22 +264,25 @@ int main(int argc, char **argv)
     output_file_stream << "    using namespace boost::python;\n";
     for (auto &function : data.functions)
     {
-        output_file_stream << "    def(\"" << function.name << "\", " << function.name << ");\n";
+        output_file_stream << "    def(\"" << function.name() << "\", " << function.name() << ");\n";
     }
     for (auto &class_ : data.classes)
     {
-        output_file_stream << "    class_<" << class_.name << ">(\"" << class_.name << "\")\n";
+        output_file_stream << "    class_<" << class_.name() << ">(\"" << class_.name() << "\")\n";
         if (class_.has_copy_constructor())
         {
-            output_file_stream << "        .def(init<" << class_.name << " const &>())\n";
+            output_file_stream << "        .def(init<" << class_.name() << " const &>())\n";
         }
-        for (auto &method : class_.methods)
+        for (auto &method : class_.methods())
         {
-            output_file_stream << "        .def(\"" << method.name << "\", &" << class_.name << "::" << method.name << ")\n";
+            output_file_stream << "        .def(\"" << method.name() << "\", &" << class_.name() << "::" << method.name() << ")\n";
         }
-        for (auto &field : class_.fields)
+        for (auto &field : class_.fields())
         {
-            output_file_stream << "        .def_readwrite(\"" << field.name << "\", &" << class_.name << "::" << field.name << ")\n";
+            if (field.access_specifier() != AccessSpecifier::Private)
+            {
+                output_file_stream << "        .def_readwrite(\"" << field.name() << "\", &" << class_.name() << "::" << field.name() << ")\n";
+            }
         }
         output_file_stream << "    ;\n";
     }
