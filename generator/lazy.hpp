@@ -9,36 +9,15 @@ template <typename T>
 class lazy
 {
 private:
-    std::optional<std::function<T()>> retriever_;
+    std::function<T()> retriever_;
     mutable std::optional<T> value_;
 
 public:
-    lazy() noexcept = default;
     lazy(std::function<T()> retriever) noexcept : retriever_{retriever} {}
 
-    /**
-     * @brief Get the value of the lazy object.
-     *
-     * If the value is accessed for the first time, it will be computed first
-     * using the retriever.
-     *
-     * @exception lazy::no_retriever No retriever was set for this lazy object.
-     */
     operator const T &() const
     {
-        if (value_.has_value())
-        {
-            return value_.value();
-        }
-        else if (retriever_.has_value())
-        {
-            value_ = retriever_.value()();
-            return value_.value();
-        }
-        else
-        {
-            throw no_retriever();
-        }
+        return value();
     }
 
     /**
@@ -46,28 +25,35 @@ public:
      *
      * If the value is accessed for the first time, it will be computed first
      * using the retriever.
-     *
-     * @param retriever The retriever to use when computing the value.
      */
-    const T &value_or(std::function<T()> retriever) const noexcept
+    const T &value() const noexcept
     {
-        if (value_.has_value())
+        if (!value_.has_value())
         {
-            return value_.value();
+            value_ = retriever_();
         }
-        else
-        {
-            value_ = retriever();
-            return value_.value();
-        }
+        return value_.value();
     }
+};
 
-    class no_retriever : public std::exception
+/**
+ * @brief Lazy value placeholder that does not has a retriever yet.
+ * 
+ * It will be converted to a lazy value when set_retriever is called. The
+ * created lazy value will be stored in the lazy placeholder for future use.
+ */
+template <typename T>
+class lazy_placeholder
+{
+private:
+    mutable std::optional<lazy<T>> lazy_;
+public:
+    lazy<T> set_retriever(std::function<T()> retriever) const
     {
-    public:
-        const char *what() const noexcept override
+        if (!lazy_.has_value())
         {
-            return "No retriever was set for this lazy value.";
+            lazy_ = lazy<T>(retriever);
         }
-    };
+        return lazy_.value();
+    }
 };
