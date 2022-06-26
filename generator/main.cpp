@@ -105,10 +105,12 @@ private:
 
 public:
     ClassDecl(CXCursor cursor)
-        : name_([cursor]()
-                { return clang_getCString(clang_getCursorSpelling(cursor)); }),
-          methods_([cursor]()
-                   { return mapChildren<CXCursor_CXXMethod, MethodDecl>(cursor); }),
+        : name_(
+              [cursor]()
+              { return clang_getCString(clang_getCursorSpelling(cursor)); }),
+          methods_(
+              [cursor]()
+              { return mapChildren<CXCursor_CXXMethod, MethodDecl>(cursor); }),
           fields_(
               [cursor]()
               { return mapChildren<CXCursor_FieldDecl, FieldDecl>(cursor); }),
@@ -139,42 +141,59 @@ public:
     }
 };
 
-struct VisitorData
+class TranslationUnit
 {
-    VisitorData(const std::string &input_file_path)
-        : input_file_path(input_file_path)
-    {
-    }
-    std::string input_file_path;
-    std::vector<FunctionDecl> functions;
-    std::vector<ClassDecl> classes;
-};
+private:
+    std::string input_file_path_;
+    std::vector<FunctionDecl> functions_;
+    std::vector<ClassDecl> classes_;
 
-CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
-{
-    VisitorData *data = static_cast<VisitorData *>(client_data);
-    CXFile file;
-    clang_getSpellingLocation(clang_getCursorLocation(cursor), &file, nullptr, nullptr, nullptr);
-    if (clang_getCString(clang_getFileName(file)) == data->input_file_path)
+public:
+    TranslationUnit(CXCursor cursor, std::string input_file_path)
+        : input_file_path_(input_file_path)
     {
-        std::string cursorSpelling(clang_getCString(clang_getCursorSpelling(cursor)));
-        auto cursorKind = clang_getCursorKind(cursor);
-        switch (cursorKind)
-        {
-        case CXCursor_FunctionDecl:
-            data->functions.push_back(FunctionDecl(cursor));
-            break;
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-            data->classes.push_back(ClassDecl(cursor));
-            break;
-        default:
-            // do nothing
-            break;
-        }
+        clang_visitChildren(
+            cursor,
+            [](CXCursor cursor, CXCursor parent, CXClientData client_data)
+            {
+                auto data = static_cast<TranslationUnit *>(client_data);
+                CXFile file;
+                unsigned int line;
+                unsigned int column;
+                unsigned int offset;
+                // TODO: this segfaults when used in lazy fields, find a way to prevent that
+                clang_getSpellingLocation(clang_getCursorLocation(cursor), &file, &line, &column, nullptr);
+                if (clang_getCString(clang_getFileName(file)) == data->input_file_path_)
+                {
+                    std::string cursorSpelling(clang_getCString(clang_getCursorSpelling(cursor)));
+                    auto cursorKind = clang_getCursorKind(cursor);
+                    switch (cursorKind)
+                    {
+                    case CXCursor_FunctionDecl:
+                        data->functions_.push_back(FunctionDecl(cursor));
+                        break;
+                    case CXCursor_ClassDecl:
+                    case CXCursor_StructDecl:
+                        data->classes_.push_back(ClassDecl(cursor));
+                        break;
+                    default:
+                        // do nothing
+                        break;
+                    }
+                }
+                return CXChildVisit_Continue;
+            },
+            this);
     }
-    return CXChildVisit_Continue;
-}
+    const std::vector<FunctionDecl> &functions() const
+    {
+        return functions_;
+    }
+    const std::vector<ClassDecl> &classes() const
+    {
+        return classes_;
+    }
+};
 
 int main(int argc, char **argv)
 {
@@ -199,11 +218,7 @@ int main(int argc, char **argv)
 
     CXCursor cursor = clang_getTranslationUnitCursor(translation_unit);
 
-    VisitorData data(input_file_path);
-    clang_visitChildren(
-        cursor,
-        visitor,
-        &data);
+    TranslationUnit parsed_translation_unit(cursor, input_file_path);
 
     std::cout
         << "[debug] disposing of translation unit" << std::endl;
@@ -222,11 +237,11 @@ int main(int argc, char **argv)
     output_file_stream << "void bind()\n";
     output_file_stream << "{\n";
     output_file_stream << "    using namespace boost::python;\n";
-    for (auto &function : data.functions)
+    for (auto &function : parsed_translation_unit.functions())
     {
         output_file_stream << "    def(\"" << function.name() << "\", " << function.name() << ");\n";
     }
-    for (auto &class_ : data.classes)
+    for (auto &class_ : parsed_translation_unit.classes())
     {
         output_file_stream << "    class_<" << class_.name() << ">(\"" << class_.name() << "\")\n";
         if (class_.has_copy_constructor())
