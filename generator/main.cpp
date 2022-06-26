@@ -1,4 +1,5 @@
 #include "lazy.hpp"
+#include "visitors.hpp"
 
 #include <clang-c/Index.h>
 
@@ -92,44 +93,6 @@ public:
     const std::string &name() const { return name_; }
     AccessSpecifier access_specifier() const { return access_specifier_; }
 };
-
-void visitChildrenOfKind(CXCursor cursor, CXCursorKind kind, std::function<void(CXCursor)> action)
-{
-    struct ClientData
-    {
-        CXCursorKind kind;
-        std::function<void(CXCursor)> action;
-    };
-    ClientData data{kind, action};
-    clang_visitChildren(
-        cursor,
-        [](CXCursor child, CXCursor parent, CXClientData client_data)
-        {
-            auto data = static_cast<ClientData *>(client_data);
-            if (clang_getCursorKind(child) == data->kind)
-            {
-                data->action(child);
-            }
-            return CXChildVisit_Continue;
-        },
-        &data);
-}
-
-template <typename Result>
-std::vector<Result> mapChildrenOfKind(CXCursor cursor, CXCursorKind kind, std::function<Result(CXCursor)> converter)
-{
-    std::vector<Result> results;
-    visitChildrenOfKind(cursor, kind, [&results, converter](CXCursor child)
-                        { results.push_back(converter(child)); });
-    return results;
-}
-
-template <CXCursorKind kind, typename Result>
-std::vector<Result> mapChildren(CXCursor cursor)
-{
-    return mapChildrenOfKind<Result>(cursor, kind, [](CXCursor child)
-                                     { return Result(child); });
-}
 
 class ClassDecl
 {
