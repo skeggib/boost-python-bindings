@@ -1,5 +1,6 @@
 add_executable(
     generator
+    clang_parser.cpp
     main.cpp
 )
 target_link_libraries(generator ${LIBCLANG_LIBRARIES})
