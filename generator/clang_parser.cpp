@@ -116,12 +116,14 @@ TranslationUnit parse_translation_unit(CXCursor cursor, std::string input_file_p
 
     // clang_getSpellingLocation segfaults when used inside a lazy object, so we
     // have to parse the children of the translation unit here for now
+    // TODO: maybe because the clang's translation unit was released?
     clang_visitChildren(
         cursor,
         visitor,
         &data);
 
     return TranslationUnit(
+        input_file_path,
         lazy<std::vector<FunctionDecl>>(
             [data]()
             { return data.functions; }),

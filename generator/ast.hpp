@@ -6,7 +6,7 @@
 
 #include "lazy.hpp"
 
-enum AccessSpecifier
+enum class AccessSpecifier
 {
     Public,
     Protected,
@@ -91,15 +91,19 @@ public:
 class TranslationUnit
 {
 private:
+    std::string path_;
     lazy<std::vector<FunctionDecl>> functions_;
     lazy<std::vector<ClassDecl>> classes_;
 
 public:
     TranslationUnit(
+        std::string path,
         lazy<std::vector<FunctionDecl>> functions,
         lazy<std::vector<ClassDecl>> classes)
-        : functions_(functions),
+        : path_(path),
+          functions_(functions),
           classes_(classes) {}
+    const std::string &path() const { return path_; }
     const std::vector<FunctionDecl> &functions() const { return functions_; };
     const std::vector<ClassDecl> &classes() const { return classes_; };
 };

@@ -1,5 +1,6 @@
 add_executable(
     generator
+    boost_python_bindings.cpp
     clang_parser.cpp
     main.cpp
 )
